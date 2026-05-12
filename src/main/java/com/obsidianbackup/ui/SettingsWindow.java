@@ -41,6 +41,9 @@ public class SettingsWindow {
     /** 창은 앱 수명 동안 하나만 존재한다. */
     private static Stage stage;
 
+    // ── 탭 패널 ──────────────────────────────────
+    @FXML private TabPane tabPane;
+
     // ── 설정 탭 ──────────────────────────────────
     @FXML private TextField  sourceFolderField;
     @FXML private TextField  backupFolderField;
@@ -72,6 +75,9 @@ public class SettingsWindow {
     private final ConfigManager configManager = ConfigManager.getInstance();
     private BackupService backupService;
 
+    /** FXMLLoader가 생성한 현재 컨트롤러 인스턴스 (TrayManager 콜백용). */
+    private static SettingsWindow controller;
+
     // ───────────────────────────────────────────
     // 정적 진입점 (TrayManager, App에서 호출)
     // ───────────────────────────────────────────
@@ -86,6 +92,7 @@ public class SettingsWindow {
             FXMLLoader loader = new FXMLLoader(
                 SettingsWindow.class.getResource("/fxml/settings.fxml"));
             Parent root = loader.load();
+            controller = loader.getController();
             stage = new Stage();
             stage.setTitle("ObsidianBackup — 설정");
             stage.setScene(new Scene(root));
@@ -94,6 +101,27 @@ public class SettingsWindow {
             stage.show();
         } catch (IOException e) {
             LOGGER.severe("settings.fxml 로드 실패: " + e.getMessage());
+        }
+    }
+
+    /**
+     * 설정창을 열고 백업 이력 탭으로 전환한다.
+     * TrayManager의 "백업 이력" 메뉴에서 호출된다.
+     */
+    public static void showHistoryTab() {
+        show();
+        if (controller != null) {
+            controller.switchToHistoryTab();
+        }
+    }
+
+    /**
+     * 창이 열려 있을 때만 이력을 새로고침한다.
+     * TrayManager 백업 완료 후 호출된다.
+     */
+    public static void refreshIfVisible() {
+        if (stage != null && stage.isShowing() && controller != null) {
+            controller.refreshHistory();
         }
     }
 
@@ -246,6 +274,12 @@ public class SettingsWindow {
     // ───────────────────────────────────────────
     // 이력 탭
     // ───────────────────────────────────────────
+
+    /** 이력 탭(인덱스 1)으로 전환하고 데이터를 새로고침한다. */
+    private void switchToHistoryTab() {
+        tabPane.getSelectionModel().select(1);
+        refreshHistory();
+    }
 
     private void refreshHistory() {
         Path appDataDir = configManager.getConfigPath().getParent();

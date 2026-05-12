@@ -367,7 +367,7 @@ jpackage \
 |------|------|------|
 | 1 | `AppConfig` + `ConfigManager` (설정 저장/불러오기) | ✅ 완료 |
 | 2 | `BackupService` (파일 복사 핵심 로직) | ✅ 완료 |
-| 3 | `SettingsWindow` (JavaFX UI) | 🔲 예정 |
-| 4 | `TrayManager` (시스템 트레이) | 🔲 예정 |
+| 3 | `SettingsWindow` (JavaFX UI) | ✅ 완료 |
+| 4 | `TrayManager` (시스템 트레이) | ✅ 완료 |
 | 5 | `BackupScheduler` (자동 스케줄) | 🔲 예정 |
 | 6 | `jpackage` .exe 빌드 | 🔲 예정 |
