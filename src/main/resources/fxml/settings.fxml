@@ -1,0 +1,173 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+
+<BorderPane xmlns="http://javafx.com/javafx/17"
+            xmlns:fx="http://javafx.com/fxml/1"
+            fx:controller="com.obsidianbackup.ui.SettingsWindow"
+            prefWidth="720" prefHeight="560">
+
+    <!-- 헤더 -->
+    <top>
+        <Label text="Obsidian Backup"
+               style="-fx-font-size: 18px; -fx-font-weight: bold; -fx-padding: 12 16 6 16;"/>
+    </top>
+
+    <!-- 탭 -->
+    <center>
+        <TabPane fx:id="tabPane" tabClosingPolicy="UNAVAILABLE">
+
+            <!-- ════════════════════════════════ 설정 탭 ════════════════════════════════ -->
+            <Tab text="설정">
+                <ScrollPane fitToWidth="true" fitToHeight="true">
+                    <GridPane hgap="10" vgap="14">
+                        <padding><Insets top="20" right="24" bottom="20" left="24"/></padding>
+
+                        <!-- 소스 폴더 -->
+                        <Label text="소스 폴더" GridPane.rowIndex="0" GridPane.columnIndex="0"
+                               style="-fx-font-weight: bold;"/>
+                        <TextField fx:id="sourceFolderField"
+                                   promptText="Obsidian Vault 경로"
+                                   GridPane.rowIndex="0" GridPane.columnIndex="1"
+                                   maxWidth="Infinity"/>
+                        <Button text="찾아보기" onAction="#browseSourceFolder"
+                                GridPane.rowIndex="0" GridPane.columnIndex="2"/>
+
+                        <!-- 백업 폴더 -->
+                        <Label text="백업 폴더" GridPane.rowIndex="1" GridPane.columnIndex="0"
+                               style="-fx-font-weight: bold;"/>
+                        <TextField fx:id="backupFolderField"
+                                   promptText="백업 저장 경로"
+                                   GridPane.rowIndex="1" GridPane.columnIndex="1"
+                                   maxWidth="Infinity"/>
+                        <Button text="찾아보기" onAction="#browseBackupFolder"
+                                GridPane.rowIndex="1" GridPane.columnIndex="2"/>
+
+                        <!-- 구분선 -->
+                        <Separator GridPane.rowIndex="2" GridPane.columnIndex="0"
+                                   GridPane.columnSpan="3"/>
+
+                        <!-- 백업 시각 -->
+                        <Label text="백업 시각" GridPane.rowIndex="3" GridPane.columnIndex="0"
+                               style="-fx-font-weight: bold;"/>
+                        <HBox spacing="8" alignment="CENTER_LEFT"
+                              GridPane.rowIndex="3" GridPane.columnIndex="1">
+                            <Spinner fx:id="backupHourSpinner" prefWidth="72"/>
+                            <Label text="시"/>
+                            <Spinner fx:id="backupMinuteSpinner" prefWidth="72"/>
+                            <Label text="분"/>
+                        </HBox>
+
+                        <!-- 보관 기간 -->
+                        <Label text="보관 기간" GridPane.rowIndex="4" GridPane.columnIndex="0"
+                               style="-fx-font-weight: bold;"/>
+                        <HBox spacing="8" alignment="CENTER_LEFT"
+                              GridPane.rowIndex="4" GridPane.columnIndex="1">
+                            <Spinner fx:id="retentionDaysSpinner" prefWidth="80"/>
+                            <Label text="일 (초과된 날짜 폴더 자동 삭제)"/>
+                        </HBox>
+
+                        <!-- 구분선 -->
+                        <Separator GridPane.rowIndex="5" GridPane.columnIndex="0"
+                                   GridPane.columnSpan="3"/>
+
+                        <!-- 옵션 체크박스 -->
+                        <Label text="옵션" GridPane.rowIndex="6" GridPane.columnIndex="0"
+                               style="-fx-font-weight: bold;"/>
+                        <VBox spacing="10" GridPane.rowIndex="6" GridPane.columnIndex="1"
+                              GridPane.columnSpan="2">
+                            <CheckBox fx:id="autoStartCheckBox"
+                                      text="Windows 시작 시 자동 실행"/>
+                            <CheckBox fx:id="incrementalBackupCheckBox"
+                                      text="증분 백업 (변경된 파일만 복사)"/>
+                            <CheckBox fx:id="showNotificationCheckBox"
+                                      text="백업 완료 시 OS 알림 표시"/>
+                        </VBox>
+
+                        <!-- 구분선 -->
+                        <Separator GridPane.rowIndex="7" GridPane.columnIndex="0"
+                                   GridPane.columnSpan="3"/>
+
+                        <!-- 버튼 바 -->
+                        <HBox spacing="12" GridPane.rowIndex="8" GridPane.columnIndex="0"
+                              GridPane.columnSpan="3" alignment="CENTER_LEFT">
+                            <Button text="설정 저장" onAction="#saveConfig"
+                                    prefWidth="100"
+                                    style="-fx-base: #4A90D9; -fx-text-fill: white;"/>
+                            <Button fx:id="backupNowButton" text="지금 백업"
+                                    onAction="#runBackupNow" prefWidth="100"/>
+                        </HBox>
+
+                        <!-- 상태 메시지 -->
+                        <Label fx:id="statusLabel"
+                               GridPane.rowIndex="9" GridPane.columnIndex="0"
+                               GridPane.columnSpan="3" wrapText="true"/>
+
+                        <columnConstraints>
+                            <ColumnConstraints minWidth="80" prefWidth="90"/>
+                            <ColumnConstraints hgrow="ALWAYS" fillWidth="true"/>
+                            <ColumnConstraints minWidth="80"/>
+                        </columnConstraints>
+                    </GridPane>
+                </ScrollPane>
+            </Tab>
+
+            <!-- ════════════════════════════════ 이력 탭 ════════════════════════════════ -->
+            <Tab text="백업 이력">
+                <VBox spacing="8">
+                    <padding><Insets top="12" right="12" bottom="12" left="12"/></padding>
+
+                    <TableView fx:id="historyTable" VBox.vgrow="ALWAYS">
+                        <columns>
+                            <TableColumn fx:id="colStartTime"  text="시작 시각"  prefWidth="155"/>
+                            <TableColumn fx:id="colStatus"     text="상태"      prefWidth="80"/>
+                            <TableColumn fx:id="colCopiedFiles" text="복사"     prefWidth="60"/>
+                            <TableColumn fx:id="colTotalFiles" text="전체"      prefWidth="60"/>
+                            <TableColumn fx:id="colSize"       text="용량"      prefWidth="90"/>
+                            <TableColumn fx:id="colDuration"   text="소요 시간" prefWidth="90"/>
+                        </columns>
+                        <placeholder>
+                            <Label text="백업 이력이 없습니다."/>
+                        </placeholder>
+                    </TableView>
+
+                    <!-- 실패 상세 (선택 시만 표시) -->
+                    <TitledPane fx:id="errorPane" text="오류 상세"
+                                expanded="false" visible="false" managed="false">
+                        <TextArea fx:id="errorDetailArea"
+                                  editable="false" prefHeight="90" wrapText="true"
+                                  style="-fx-font-family: 'Monospaced';"/>
+                    </TitledPane>
+
+                    <!-- 저장소 사용량 -->
+                    <HBox spacing="10" alignment="CENTER_LEFT">
+                        <Label text="저장소 사용량:"/>
+                        <ProgressBar fx:id="diskUsageBar" prefWidth="220" progress="0"/>
+                        <Label fx:id="diskUsageLabel" text=""/>
+                    </HBox>
+                </VBox>
+            </Tab>
+
+            <!-- ════════════════════════════════ 로그 탭 ════════════════════════════════ -->
+            <Tab text="로그">
+                <VBox spacing="8">
+                    <padding><Insets top="12" right="12" bottom="12" left="12"/></padding>
+
+                    <TextArea fx:id="logArea"
+                              editable="false" wrapText="false"
+                              VBox.vgrow="ALWAYS"
+                              style="-fx-font-family: 'Monospaced'; -fx-font-size: 12px;"/>
+
+                    <HBox spacing="10">
+                        <Button text="새로고침" onAction="#refreshLog"/>
+                        <Button text="내보내기..." onAction="#exportLog"/>
+                    </HBox>
+                </VBox>
+            </Tab>
+
+        </TabPane>
+    </center>
+
+</BorderPane>
