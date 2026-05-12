@@ -128,7 +128,7 @@ tasks.register('jpackage', Exec) {
 
     dependsOn shadowJar
 
-    def jarName  = "obsidian-backup-all-${version}.jar"
+    def jarName  = "obsidian-backup-${version}-all.jar"
     def destDir  = layout.buildDirectory.dir('dist').get().asFile.absolutePath
     def iconFile = file('src/main/resources/app-icon.png').absolutePath
 
