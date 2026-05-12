@@ -1,0 +1,125 @@
+name: CI / Build
+
+# ─────────────────────────────────────────────────────────────
+# 트리거
+#   push to main      → 테스트 + Windows .exe 빌드
+#   pull_request      → 테스트만
+#   push tag v*.*.*   → 테스트 + 빌드 + GitHub Release 자동 생성
+#   workflow_dispatch → 수동 실행
+# ─────────────────────────────────────────────────────────────
+on:
+  push:
+    branches: [ main ]
+    tags:     [ 'v*.*.*' ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+
+  # ═══════════════════════════════════════
+  # 1. 테스트 (Ubuntu — 빠름)
+  # ═══════════════════════════════════════
+  test:
+    name: 테스트
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: JDK 17 설정 (Temurin)
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+          cache: gradle
+
+      - name: gradlew 실행 권한
+        run: chmod +x gradlew
+
+      - name: 테스트 실행
+        run: ./gradlew test
+
+      - name: 테스트 리포트 업로드
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-report
+          path: build/reports/tests/test/
+          retention-days: 14
+
+  # ═══════════════════════════════════════
+  # 2. Windows .exe 빌드
+  #    테스트 통과 + main 브랜치 or 태그일 때만 실행
+  # ═══════════════════════════════════════
+  build-exe:
+    name: Windows .exe 빌드
+    needs: test
+    runs-on: windows-latest
+    if: github.event_name != 'pull_request'
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # Liberica Full JDK: JavaFX 21 네이티브 모듈 포함
+      # → jpackage가 JavaFX 런타임을 번들에 포함할 수 있음
+      - name: Liberica JDK 21 Full 설정 (JavaFX 포함)
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'liberica'
+          java-package: 'jdk+fx'
+          cache: gradle
+
+      # jpackage --type exe 는 WiX Toolset 3.x 필요
+      - name: WiX Toolset 3.x 설치
+        run: choco install wixtoolset -y
+        shell: powershell
+
+      - name: PATH에 WiX 추가
+        run: |
+          $wixPath = "C:\Program Files (x86)\WiX Toolset v3.11\bin"
+          if (Test-Path $wixPath) {
+            echo $wixPath >> $env:GITHUB_PATH
+          } else {
+            # WiX 설치 경로 자동 탐색
+            $found = Get-ChildItem "C:\Program Files (x86)\WiX Toolset*\bin" -ErrorAction SilentlyContinue |
+                     Select-Object -First 1 -ExpandProperty FullName
+            if ($found) { echo $found >> $env:GITHUB_PATH }
+          }
+        shell: powershell
+
+      - name: Windows .exe 빌드
+        run: ./gradlew buildExe
+
+      - name: .exe 아티팩트 업로드
+        uses: actions/upload-artifact@v4
+        with:
+          name: ObsidianBackup-${{ github.ref_name }}-exe
+          path: build/dist/*.exe
+          retention-days: 90
+
+  # ═══════════════════════════════════════
+  # 3. GitHub Release (태그 push 시 자동 생성)
+  #    예: git tag v1.0.0 && git push origin v1.0.0
+  # ═══════════════════════════════════════
+  release:
+    name: GitHub 릴리즈 생성
+    needs: build-exe
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/v')
+    permissions:
+      contents: write
+
+    steps:
+      - name: .exe 아티팩트 다운로드
+        uses: actions/download-artifact@v4
+        with:
+          name: ObsidianBackup-${{ github.ref_name }}-exe
+          path: dist/
+
+      - name: 릴리즈 생성 및 .exe 첨부
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/*.exe
+          generate_release_notes: true   # 커밋 메시지 기반 릴리즈 노트 자동 생성
