@@ -1,0 +1,76 @@
+plugins {
+    id 'java'
+    id 'application'
+    id 'org.openjfx.javafxplugin' version '0.1.0'
+    id 'com.github.johnrengelman.shadow' version '8.1.1'
+}
+
+group = 'com.obsidianbackup'
+version = '1.0.0'
+
+java {
+    sourceCompatibility = JavaVersion.VERSION_17
+    targetCompatibility = JavaVersion.VERSION_17
+}
+
+application {
+    mainClass = 'com.obsidianbackup.App'
+    // SystemTray 사용을 위해 headless 모드 비활성화
+    applicationDefaultJvmArgs = ['-Djava.awt.headless=false']
+}
+
+javafx {
+    version = '21'
+    modules = ['javafx.controls', 'javafx.fxml', 'javafx.swing']
+}
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    // JSON 파싱
+    implementation 'com.google.code.gson:gson:2.10.1'
+
+    // 테스트
+    testImplementation 'org.junit.jupiter:junit-jupiter:5.10.0'
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+}
+
+test {
+    useJUnitPlatform()
+}
+
+// Fat JAR 설정 (모든 의존성 포함)
+shadowJar {
+    archiveBaseName = 'obsidian-backup'
+    archiveClassifier = 'all'
+    archiveVersion = version
+    mergeServiceFiles()
+    manifest {
+        attributes 'Main-Class': 'com.obsidianbackup.App'
+    }
+}
+
+// jpackage 태스크 (exe 빌드)
+tasks.register('jpackage', Exec) {
+    dependsOn shadowJar
+    def jarPath = shadowJar.archiveFile.get().asFile.absolutePath
+    def distDir = layout.buildDirectory.dir('dist').get().asFile.absolutePath
+
+    doFirst {
+        mkdir distDir
+    }
+
+    commandLine 'jpackage',
+        '--input', file('build/libs').absolutePath,
+        '--main-jar', "obsidian-backup-all-${version}.jar",
+        '--main-class', 'com.obsidianbackup.App',
+        '--name', 'ObsidianBackup',
+        '--app-version', version,
+        '--win-shortcut',
+        '--win-menu',
+        '--type', 'exe',
+        '--dest', distDir,
+        '--java-options', '-Djava.awt.headless=false'
+}
