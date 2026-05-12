@@ -50,7 +50,11 @@ shadowJar {
     manifest {
         attributes 'Main-Class': 'com.obsidianbackup.App'
     }
-    // JavaFX native libs 제외 (런타임 모듈에 포함됨)
+    // jpackage가 번들 JRE(Liberica Full)의 JavaFX 네이티브 라이브러리를 사용한다.
+    // FAT JAR에 .dll/.so/.dylib가 중복 포함되면 런타임 충돌이 생기므로 제외한다.
+    exclude '**/*.dll'
+    exclude '**/*.so'
+    exclude '**/*.dylib'
     exclude 'META-INF/INDEX.LIST'
     exclude 'META-INF/*.SF'
     exclude 'META-INF/*.DSA'
