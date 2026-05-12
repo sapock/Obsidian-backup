@@ -78,6 +78,9 @@ public class SettingsWindow {
     /** FXMLLoader가 생성한 현재 컨트롤러 인스턴스 (TrayManager 콜백용). */
     private static SettingsWindow controller;
 
+    /** 설정 저장 후 실행할 콜백 (BackupScheduler::reschedule 주입용). */
+    private static Runnable onConfigSaved;
+
     // ───────────────────────────────────────────
     // 정적 진입점 (TrayManager, App에서 호출)
     // ───────────────────────────────────────────
@@ -113,6 +116,14 @@ public class SettingsWindow {
         if (controller != null) {
             controller.switchToHistoryTab();
         }
+    }
+
+    /**
+     * 설정 저장 후 호출될 콜백을 등록한다.
+     * App에서 BackupScheduler::reschedule을 주입한다.
+     */
+    public static void setOnConfigSaved(Runnable callback) {
+        onConfigSaved = callback;
     }
 
     /**
@@ -235,6 +246,15 @@ public class SettingsWindow {
 
         boolean ok = configManager.save(cfg);
         setStatus(ok ? "설정이 저장되었습니다." : "설정 저장에 실패했습니다.", !ok);
+
+        if (ok) {
+            // autoStart 레지스트리 갱신 (Windows만 동작, 다른 OS는 무시)
+            com.obsidianbackup.scheduler.BackupScheduler.setAutoStart(
+                cfg.isAutoStart(), null);
+
+            // 스케줄러 재예약
+            if (onConfigSaved != null) onConfigSaved.run();
+        }
     }
 
     @FXML
