@@ -370,4 +370,4 @@ jpackage \
 | 3 | `SettingsWindow` (JavaFX UI) | ✅ 완료 |
 | 4 | `TrayManager` (시스템 트레이) | ✅ 완료 |
 | 5 | `BackupScheduler` (자동 스케줄) | ✅ 완료 |
-| 6 | `jpackage` .exe 빌드 | 🔲 예정 |
+| 6 | `jpackage` .exe 빌드 | ✅ 완료 |

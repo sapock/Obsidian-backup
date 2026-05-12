@@ -5,7 +5,7 @@ plugins {
     id 'com.github.johnrengelman.shadow' version '8.1.1'
 }
 
-group = 'com.obsidianbackup'
+group   = 'com.obsidianbackup'
 version = '1.0.0'
 
 java {
@@ -15,7 +15,6 @@ java {
 
 application {
     mainClass = 'com.obsidianbackup.App'
-    // SystemTray 사용을 위해 headless 모드 비활성화
     applicationDefaultJvmArgs = ['-Djava.awt.headless=false']
 }
 
@@ -29,48 +28,134 @@ repositories {
 }
 
 dependencies {
-    // JSON 파싱
     implementation 'com.google.code.gson:gson:2.10.1'
 
-    // 테스트
     testImplementation 'org.junit.jupiter:junit-jupiter:5.10.0'
-    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+    testRuntimeOnly  'org.junit.platform:junit-platform-launcher'
 }
 
 test {
     useJUnitPlatform()
 }
 
-// Fat JAR 설정 (모든 의존성 포함)
+// ─────────────────────────────────────────
+// Fat JAR (shadowJar)
+// ─────────────────────────────────────────
+
 shadowJar {
-    archiveBaseName = 'obsidian-backup'
-    archiveClassifier = 'all'
-    archiveVersion = version
+    archiveBaseName    = 'obsidian-backup'
+    archiveClassifier  = 'all'
+    archiveVersion     = version
     mergeServiceFiles()
     manifest {
         attributes 'Main-Class': 'com.obsidianbackup.App'
     }
+    // JavaFX native libs 제외 (런타임 모듈에 포함됨)
+    exclude 'META-INF/INDEX.LIST'
+    exclude 'META-INF/*.SF'
+    exclude 'META-INF/*.DSA'
+    exclude 'META-INF/*.RSA'
 }
 
-// jpackage 태스크 (exe 빌드)
+// ─────────────────────────────────────────
+// 아이콘 생성 태스크 (Groovy 인라인 — 순환 참조 없음)
+// ─────────────────────────────────────────
+
+tasks.register('generateIcon') {
+    description = '빌드용 PNG 아이콘을 자동 생성합니다.'
+    group       = 'build'
+
+    def trayIconFile = file('src/main/resources/tray-icon.png')
+    def appIconFile  = file('src/main/resources/app-icon.png')
+
+    outputs.file trayIconFile
+    outputs.file appIconFile
+    outputs.upToDateWhen { trayIconFile.exists() && appIconFile.exists() }
+
+    doLast {
+        System.setProperty('java.awt.headless', 'true')
+
+        def drawIcon = { File dest, int size ->
+            def img = new java.awt.image.BufferedImage(size, size,
+                          java.awt.image.BufferedImage.TYPE_INT_ARGB)
+            def g = img.createGraphics()
+            g.setRenderingHint(java.awt.RenderingHints.KEY_ANTIALIASING,
+                               java.awt.RenderingHints.VALUE_ANTIALIAS_ON)
+
+            // 파란 원형 배경
+            g.setColor(new java.awt.Color(58, 124, 200))
+            g.fillOval(0, 0, size, size)
+
+            // 테두리
+            g.setColor(new java.awt.Color(30, 80, 150))
+            g.setStroke(new java.awt.BasicStroke(size < 16 ? 1.0f : (size / 16) as float))
+            g.drawOval(1, 1, size - 2, size - 2)
+
+            // 흰색 'O'
+            int fontSize = (int)(size * 0.55)
+            g.setColor(java.awt.Color.WHITE)
+            g.setFont(new java.awt.Font('Arial', java.awt.Font.BOLD, fontSize))
+            def fm = g.getFontMetrics()
+            def ch = 'O'
+            g.drawString(ch, (size - fm.stringWidth(ch)).intdiv(2),
+                             (size - fm.height).intdiv(2) + fm.ascent)
+            g.dispose()
+
+            dest.parentFile.mkdirs()
+            javax.imageio.ImageIO.write(img, 'PNG', dest)
+            println "  Generated: ${dest.name} (${size}×${size})"
+        }
+
+        drawIcon(trayIconFile, 16)
+        drawIcon(appIconFile,  256)
+    }
+}
+
+// 리소스 처리 전에 아이콘 먼저 생성 (순환 없음: generateIcon은 컴파일에 의존하지 않음)
+processResources.dependsOn generateIcon
+
+// ─────────────────────────────────────────
+// jpackage — Windows .exe 인스톨러 빌드
+// ─────────────────────────────────────────
+
 tasks.register('jpackage', Exec) {
+    description = 'jpackage로 Windows .exe 인스톨러를 생성합니다.'
+    group       = 'distribution'
+
     dependsOn shadowJar
-    def jarPath = shadowJar.archiveFile.get().asFile.absolutePath
-    def distDir = layout.buildDirectory.dir('dist').get().asFile.absolutePath
+
+    def jarName  = "obsidian-backup-all-${version}.jar"
+    def destDir  = layout.buildDirectory.dir('dist').get().asFile.absolutePath
+    def iconFile = file('src/main/resources/app-icon.png').absolutePath
 
     doFirst {
-        mkdir distDir
+        mkdir destDir
     }
 
     commandLine 'jpackage',
-        '--input', file('build/libs').absolutePath,
-        '--main-jar', "obsidian-backup-all-${version}.jar",
-        '--main-class', 'com.obsidianbackup.App',
-        '--name', 'ObsidianBackup',
+        '--input',       file('build/libs').absolutePath,
+        '--main-jar',    jarName,
+        '--main-class',  'com.obsidianbackup.App',
+        '--name',        'ObsidianBackup',
+        '--description', 'Obsidian Vault 자동 백업 도구',
+        '--vendor',      'ObsidianBackup',
         '--app-version', version,
+        '--type',        'exe',
+        '--dest',        destDir,
         '--win-shortcut',
         '--win-menu',
-        '--type', 'exe',
-        '--dest', distDir,
-        '--java-options', '-Djava.awt.headless=false'
+        '--win-dir-chooser',
+        '--win-per-user-install',
+        '--java-options', '-Djava.awt.headless=false',
+        '--java-options', '-Xmx256m'
+}
+
+// ─────────────────────────────────────────
+// buildExe — shadowJar + jpackage 한 번에
+// ─────────────────────────────────────────
+
+tasks.register('buildExe') {
+    description = 'Fat JAR 빌드 후 Windows .exe 인스톨러를 생성합니다.'
+    group       = 'distribution'
+    dependsOn jpackage
 }
