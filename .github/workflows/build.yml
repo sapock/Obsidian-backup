@@ -15,6 +15,10 @@ on:
     branches: [ main ]
   workflow_dispatch:
 
+# Node.js 24로 모든 액션 실행 (Node.js 20 지원 중단 대응)
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
 jobs:
 
   # ═══════════════════════════════════════
